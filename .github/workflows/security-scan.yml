@@ -43,7 +43,7 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          syft package-lock.json -o cyclonedx-json=sbom_raw.json
+          syft package-lock.json -o cyclonedx-json=sbom.json
 
       # -----------------------
       # Grype
