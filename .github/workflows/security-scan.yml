@@ -34,8 +34,8 @@ jobs:
       # -----------------------
 
       # -----------------------
-      # Syft to generate SBOM
-      # SBOM - (Software Bill of Materials) - list of components and dependencies in a project
+      # Syft
+      # Generates SBOM - (Software Bill of Materials) - list of components and dependencies in a project from package.json, Docker image, filesystem
       # -----------------------
       - name: Install Syft
         run: |
@@ -44,7 +44,6 @@ jobs:
       - name: Generate SBOM
         run: |
           syft package-lock.json -o cyclonedx-json=sbom_raw.json
-          jq 'del(.components[] | select(.name=="npm" and .version=="0.0.0"))' sbom_raw.json > sbom.json
 
       # -----------------------
       # Grype
@@ -106,13 +105,13 @@ jobs:
       # -----------------------
       # AuditJS
       # Sonatype-nexus-community
-      # Checks Javascript/Node project using Sonatype OSS Index (Free and opensource usees huge databases for CVEs)
+      # Checks Javascript/Node project using Sonatype OSS Index (Free and opensource huge databases for CVEs)
       # -----------------------
       - name: Install AuditJS
         run: npm install -g auditjs
 
       - name: Run AuditJS scan (fail on HIGH+)
-        run: auditjs ossi --exit-code high
+        run: auditjs ossi --exit-code high --format json > auditjs-report.json
 
 
       # -----------------------
@@ -135,6 +134,13 @@ jobs:
         with:
           name: retirejs-report
           path: retire-report.json
+      
+      - name: Upload AuditJS report
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditjs-report
+          path: auditjs-report.json
+
 
       - name: Upload Trivy filesystem report
         uses: actions/upload-artifact@v4

@@ -1,5 +1,5 @@
 {
-  "name": "npm",
+  "name": "security-scanning-workflow",
   "private": true,
   "version": "0.0.0",
   "type": "module",
