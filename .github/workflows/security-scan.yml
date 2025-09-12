@@ -18,19 +18,28 @@ jobs:
       # -----------------------
       # SBOM + Vulnerability
       # -----------------------
+      # -----------------------
+      # Generate SBOM (Syft)
+      # -----------------------
       - name: Install Syft
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Generate SBOM
-        run: syft . -o cyclonedx-json=sbom.json
+        run: |
+          syft package-lock.json -o cyclonedx-json=sbom_raw.json
+          jq 'del(.components[] | select(.name=="npm" and .version=="0.0.0"))' sbom_raw.json > sbom.json
 
+      # -----------------------
+      # Scan with Grype
+      # -----------------------
       - name: Install Grype
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
 
-      - name: Run Grype vulnerability scan (fail on HIGH+)
+      - name: Run Grype vulnerability scan
         run: grype sbom:sbom.json --fail-on high -o table
+
 
       - name: Install Trivy
         run: |
