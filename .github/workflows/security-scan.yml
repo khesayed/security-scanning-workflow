@@ -14,10 +14,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+    
+      # -----------------------
+      # Node.js setup
+      # -----------------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # -----------------------
+      # Install project dependencies - required by Syft/Grype and JS scanners
+      # -----------------------
+      - name: Install dependencies
+        run: npm install
 
       # -----------------------
       # SBOM + Vulnerability
       # -----------------------
+
       # -----------------------
       # Generate SBOM (Syft)
       # -----------------------
@@ -37,10 +52,12 @@ jobs:
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
 
-      - name: Run Grype vulnerability scan
-        run: grype sbom:sbom.json --fail-on high -o table
+      - name: Run Grype vulnerability scan (fail on HIGH+)
+        run: grype sbom:sbom.json --fail-on high -o json > grype-report.json
 
-
+      # -----------------------
+      # Trivy FS and Docer image scans
+      # -----------------------
       - name: Install Trivy
         run: |
           sudo apt-get update
@@ -50,18 +67,41 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y trivy
 
+      # -----------------------
+      # Run Trivy vulnerability scan (fail on HIGH+)
+      # -----------------------
       - name: Run Trivy vulnerability scan (fail on HIGH+)
-        run: trivy fs . --exit-code 1 --severity HIGH,CRITICAL --scanners vuln
+        run: trivy fs . --exit-code 1 --severity HIGH,CRITICAL --scanners vuln --format json --output trivy-fs-report.json
+      
+      # -----------------------
+      # Build Docker image
+      # -----------------------
+      # - name: Build Docker image
+      #   run: docker build -t my-app:latest .
+      
+      # -----------------------
+      # Trivy scan Docker image
+      # -----------------------
+      # - name: Scan Docker image with Trivy
+      #   run: trivy image --exit-code 1 --severity HIGH,CRITICAL --format json --output trivy-image-report.json my-app:latest
+
 
       # -----------------------
       # JS-specific scanners
+      # -----------------------
+
+      # -----------------------
+      # Retires.js
       # -----------------------
       - name: Install Retire.js
         run: npm install -g retire
 
       - name: Run Retire.js scan (fail on HIGH+)
-        run: retire --severity high --exitwith 1
+        run: retire --path . --outputformat json --outputpath retire-report.json --severity high --exitwith 1
 
+      # -----------------------
+      # AuditJS
+      # -----------------------
       - name: Install AuditJS
         run: npm install -g auditjs
 
@@ -70,7 +110,7 @@ jobs:
 
 
       # -----------------------
-      # Upload reports/artifacts
+      # 11) Upload artifacts
       # -----------------------
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
@@ -78,18 +118,26 @@ jobs:
           name: sbom
           path: sbom.json
 
-      - name: Upload vulnerability reports
+      - name: Upload Grype report
         uses: actions/upload-artifact@v4
         with:
-          name: vuln-reports
-          path: |
-            grype-report.json
-            trivy_report.json
+          name: grype-report
+          path: grype-report.json
 
-      - name: Upload secret scan reports
+      - name: Upload Retire.js report
         uses: actions/upload-artifact@v4
         with:
-          name: secret-reports
-          path: |
-            gitleaks_report.json
-            trivy_secrets.json
+          name: retirejs-report
+          path: retire-report.json
+
+      - name: Upload Trivy filesystem report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: trivy-fs-report.json
+
+      # - name: Upload Trivy Docker image report
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: trivy-image-report
+      #     path: trivy-image-report.json
