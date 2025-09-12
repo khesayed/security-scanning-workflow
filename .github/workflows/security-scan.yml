@@ -34,7 +34,8 @@ jobs:
       # -----------------------
 
       # -----------------------
-      # Generate SBOM (Syft)
+      # Syft to generate SBOM
+      # SBOM - (Software Bill of Materials) - list of components and dependencies in a project
       # -----------------------
       - name: Install Syft
         run: |
@@ -46,7 +47,8 @@ jobs:
           jq 'del(.components[] | select(.name=="npm" and .version=="0.0.0"))' sbom_raw.json > sbom.json
 
       # -----------------------
-      # Scan with Grype
+      # Grype
+      # Vulnerability scanner using SBOM as input
       # -----------------------
       - name: Install Grype
         run: |
@@ -57,6 +59,7 @@ jobs:
 
       # -----------------------
       # Trivy FS and Docer image scans
+      # Full security scan including filesystems, docker, OS packages, etc.
       # -----------------------
       - name: Install Trivy
         run: |
@@ -91,7 +94,8 @@ jobs:
       # -----------------------
 
       # -----------------------
-      # Retires.js
+      # Retire.js
+      # Checks for known vulnerabilities in JS libraries and Old/Deprecated libraries
       # -----------------------
       - name: Install Retire.js
         run: npm install -g retire
@@ -101,6 +105,8 @@ jobs:
 
       # -----------------------
       # AuditJS
+      # Sonatype-nexus-community
+      # Checks Javascript/Node project using Sonatype OSS Index (Free and opensource usees huge databases for CVEs)
       # -----------------------
       - name: Install AuditJS
         run: npm install -g auditjs
