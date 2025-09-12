@@ -1,0 +1,86 @@
+name: Security Scan
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (with full history for gitleaks)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -----------------------
+      # SBOM + Vulnerability
+      # -----------------------
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: syft . -o cyclonedx-json=sbom.json
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Run Grype vulnerability scan (fail on HIGH+)
+        run: grype sbom:sbom.json --fail-on high -o table
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Run Trivy vulnerability scan (fail on HIGH+)
+        run: trivy fs . --exit-code 1 --severity HIGH,CRITICAL --scanners vuln
+
+      # -----------------------
+      # JS-specific scanners
+      # -----------------------
+      - name: Install Retire.js
+        run: npm install -g retire
+
+      - name: Run Retire.js scan (fail on HIGH+)
+        run: retire --severity high --exitwith 1
+
+      - name: Install AuditJS
+        run: npm install -g auditjs
+
+      - name: Run AuditJS scan (fail on HIGH+)
+        run: auditjs ossi --exit-code high
+
+
+      # -----------------------
+      # Upload reports/artifacts
+      # -----------------------
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Upload vulnerability reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuln-reports
+          path: |
+            grype-report.json
+            trivy_report.json
+
+      - name: Upload secret scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-reports
+          path: |
+            gitleaks_report.json
+            trivy_secrets.json
